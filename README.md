@@ -76,9 +76,10 @@ addresses as extra candidates to confirm roles granted via internal calls.
 
 ## Deployment
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and
-publishes `dist/` to **GitHub Pages**. One-time setup: in the repository,
-go to **Settings → Pages → Build and deployment → Source = GitHub Actions**.
+Every push (on any branch) runs `.github/workflows/deploy.yml`, which builds the
+site as a CI gate. Only pushes to `main` upload the Pages artifact and publish
+`dist/` to **GitHub Pages**. One-time setup: in the repository, go to
+**Settings → Pages → Build and deployment → Source = GitHub Actions**.
 
 Asset URLs are relative, so the project Pages path
 (`https://<owner>.github.io/contract-roles-analysis/`) works with no extra
