@@ -11,7 +11,7 @@ copyStatic();
 const ctx = await esbuild.context({
   entryPoints: ['src/main.ts'],
   bundle: true,
-  format: 'esm',
+  format: 'iife',
   target: 'es2022',
   minify: false,
   sourcemap: true,

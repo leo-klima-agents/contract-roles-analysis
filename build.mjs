@@ -10,7 +10,10 @@ const devRpc = dev ? (process.env.DEV_RPC_URL ?? '') : '';
 export const buildOptions = {
   entryPoints: ['src/main.ts'],
   bundle: true,
-  format: 'esm',
+  // IIFE (classic script) so the built index.html opens directly from the
+  // filesystem (file://). Browsers block ES-module scripts over file:// due to
+  // CORS, which would break opening a downloaded artifact by double-clicking.
+  format: 'iife',
   target: 'es2022',
   minify: !dev,
   sourcemap: true,
