@@ -1,8 +1,7 @@
-name: Deploy to GitHub Pages
+name: Build & Deploy
 
 on:
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -10,8 +9,9 @@ permissions:
   pages: write
   id-token: write
 
+# Group per ref so branch builds don't cancel a main deploy (and vice versa).
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -25,13 +25,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+
+      # Downloadable build for ANY branch: grab this from the run's "Artifacts"
+      # section, unzip, and open index.html locally (asset paths are relative,
+      # so it works straight from the filesystem).
+      - name: Upload built site (downloadable from any branch)
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-site
+          path: ./dist
+          if-no-files-found: error
+          retention-days: 30
+
+      # Pages artifact + config are only needed for the deploy on main.
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

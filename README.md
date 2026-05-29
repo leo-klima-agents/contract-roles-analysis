@@ -77,6 +77,31 @@ Asset URLs are relative, so the project Pages path
 (`https://<owner>.github.io/contract-roles-analysis/`) works with no extra
 configuration.
 
+### Previewing a branch build (without GitHub Pages)
+
+The same workflow runs on a push to **any** branch and publishes the built site
+as a downloadable artifact, so you can try a branch's version before it reaches
+Pages:
+
+1. Open the **Actions** tab and click the workflow run for your branch (or the
+   commit/PR's **Checks**).
+2. In the run summary, download the **`static-site`** artifact from the
+   **Artifacts** section.
+3. Unzip it and open `index.html` in your browser. Asset paths are relative, so
+   it works straight from the filesystem (`file://`) — no server needed.
+
+Only `main` is deployed to Pages; branch runs just produce the downloadable
+artifact (retained for 30 days).
+
+## RPC providers
+
+Works with any standard JSON-RPC HTTP endpoint for the selected chain —
+Alchemy, QuickNode, Infura, public nodes, etc. The client deliberately sends one
+plain request per call (no transport-level JSON-RPC array batching), because
+some providers (e.g. certain QuickNode endpoints) reject array-batched bodies
+and would otherwise fail with "HTTP request failed". `hasRole` reads are still
+aggregated into a single `eth_call` via multicall3.
+
 ## Known limitations
 
 - **Internal/relayer calls beyond Safe wrappers** may still be invisible to a
