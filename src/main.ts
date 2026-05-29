@@ -311,7 +311,22 @@ exportBtn.addEventListener('click', () => {
 });
 
 function errMsg(e: unknown): string {
-  if (e instanceof Error) return e.message.split('\n')[0]!;
+  // viem errors carry richer context than the top-level message; surface the
+  // short message + details (e.g. HTTP status / provider body) when present.
+  if (e && typeof e === 'object') {
+    const anyE = e as {
+      shortMessage?: string;
+      details?: string;
+      status?: number;
+      message?: string;
+    };
+    const parts: string[] = [];
+    if (anyE.shortMessage) parts.push(anyE.shortMessage);
+    if (anyE.status) parts.push(`HTTP ${anyE.status}`);
+    if (anyE.details && anyE.details !== anyE.shortMessage) parts.push(anyE.details);
+    if (parts.length) return parts.join(' — ');
+    if (anyE.message) return anyE.message.split('\n')[0]!;
+  }
   return String(e);
 }
 
