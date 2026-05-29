@@ -2,10 +2,10 @@
 export interface PersistedState {
   chainKey: string;
   contract: string;
-  /** Only present when the user opts in to remembering the RPC URL. */
-  rpcUrl?: string;
-  rememberRpc: boolean;
-  methods: Array<{
+  /** Only present when the user opts in to remembering the API key. */
+  explorerApiKey?: string;
+  rememberApiKey: boolean;
+  events: Array<{
     signature: string;
     isGrant: boolean;
     isRevoke: boolean;
@@ -19,7 +19,6 @@ export interface PersistedState {
   candidateAddressesText: string;
   fromBlock: string;
   toBlock: string;
-  concurrency: string;
 }
 
 const KEY = 'cra:v1:state';
@@ -36,9 +35,9 @@ export function loadState(): Partial<PersistedState> | null {
 
 export function saveState(state: PersistedState): void {
   try {
-    // Never persist the RPC URL unless the user opted in.
+    // Never persist the API key unless the user opted in.
     const toStore: PersistedState = { ...state };
-    if (!state.rememberRpc) delete toStore.rpcUrl;
+    if (!state.rememberApiKey) delete toStore.explorerApiKey;
     localStorage.setItem(KEY, JSON.stringify(toStore));
   } catch {
     // Storage may be unavailable (private mode / quota); ignore.

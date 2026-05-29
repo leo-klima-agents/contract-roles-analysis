@@ -1,18 +1,18 @@
-import type { Address, Hex, AbiFunction } from 'viem';
+import type { Address, Hex, AbiEvent } from 'viem';
 
-/** A method whose calls may grant and/or revoke a role. */
-export interface MethodDef {
+/** A role-change event whose emissions may grant and/or revoke a role. */
+export interface EventDef {
   /** Stable key (the signature string). */
   id: string;
-  /** Human-readable signature, e.g. "grantRole(bytes32 role, address account)". */
+  /** Human-readable signature, e.g. "RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)". */
   signature: string;
   /** Parsed ABI item (undefined while the signature fails to parse). */
-  abi?: AbiFunction;
-  /** 4-byte selector derived from the ABI (undefined if unparsable). */
-  selector?: Hex;
-  /** Treat a successful decode of this method as granting the role. */
+  abi?: AbiEvent;
+  /** 32-byte event topic0 derived from the ABI (undefined if unparsable). */
+  topic0?: Hex;
+  /** Treat an emission of this event as granting the role. */
   isGrant: boolean;
-  /** Treat a successful decode of this method as revoking the role. */
+  /** Treat an emission of this event as revoking the role. */
   isRevoke: boolean;
   /** Argument carrying the bytes32 role (name or positional index). */
   roleArg: string | number;
@@ -40,12 +40,6 @@ export interface HasRoleConfig {
   candidateAddresses: Address[];
 }
 
-export interface ScanConfig {
-  fromBlock: bigint;
-  toBlock: bigint;
-  concurrency: number;
-}
-
 export type RoleAction = 'grant' | 'revoke';
 
 /** A (role, account) pair discovered during the scan, with provenance. */
@@ -56,7 +50,11 @@ export interface Candidate {
   lastAction: RoleAction;
   txHash: Hex;
   blockNumber: bigint;
-  /** True when the call was found wrapped inside a Safe execTransaction/multiSend. */
+  /**
+   * True when the role change was routed through a Safe wrapper. Event-log
+   * discovery cannot tell (the contract emits the event regardless of call
+   * path), so this is always false here; retained for the results display.
+   */
   viaSafe: boolean;
 }
 

@@ -16,8 +16,8 @@
       <h1>Contract Roles Analysis</h1>
       <p class="tagline">
         Inspect access-control roles of a smart contract on Ethereum, Base,
-        Polygon, or Arbitrum — fully in your browser. Nothing is sent anywhere
-        except the RPC endpoint you provide.
+        Polygon, or Arbitrum — fully in your browser. The only network traffic
+        is to the Etherscan V2 API, using the key you provide.
       </p>
     </header>
 
@@ -31,15 +31,15 @@
             <select id="chain"></select>
           </label>
           <label class="field span-2">
-            <span>RPC URL</span>
+            <span>Etherscan V2 API key</span>
             <input
-              id="rpcUrl"
-              type="url"
-              placeholder="https://… (must match the selected chain)"
+              id="explorerApiKey"
+              type="password"
+              placeholder="Etherscan / BaseScan V2 API key (one key works on all chains)"
               autocomplete="off"
               spellcheck="false"
             />
-            <small class="hint" id="rpcHint"></small>
+            <small class="hint" id="apiKeyHint"></small>
           </label>
           <label class="field span-2">
             <span>Contract address</span>
@@ -53,23 +53,25 @@
             <small class="hint" id="contractHint"></small>
           </label>
           <label class="checkbox-inline">
-            <input id="rememberRpc" type="checkbox" />
-            <span>Remember RPC URL on this device (may contain an API key)</span>
+            <input id="rememberApiKey" type="checkbox" />
+            <span>Remember API key on this device</span>
           </label>
         </div>
       </section>
 
-      <!-- Methods -->
-      <section class="card" aria-labelledby="h-methods">
-        <h2 id="h-methods">2. Role-changing methods</h2>
+      <!-- Events -->
+      <section class="card" aria-labelledby="h-events">
+        <h2 id="h-events">2. Role events</h2>
         <p class="section-help">
-          The methods to look for in transaction history. Tick whether each
-          should be treated as <strong>granting</strong> and/or
-          <strong>revoking</strong> a role, and choose which argument is the
-          role (bytes32) and which is the account (address).
+          The events to discover via the explorer's <code>getLogs</code> API.
+          Tick whether each should be treated as <strong>granting</strong>
+          and/or <strong>revoking</strong> a role, and choose which argument is
+          the role (bytes32) and which is the account (address). Seeded with the
+          OpenZeppelin <code>RoleGranted</code> / <code>RoleRevoked</code>
+          events.
         </p>
-        <div id="methodsTable"></div>
-        <button id="addMethod" type="button" class="secondary">+ Add method</button>
+        <div id="eventsTable"></div>
+        <button id="addEvent" type="button" class="secondary">+ Add event</button>
       </section>
 
       <!-- Roles -->
@@ -100,10 +102,10 @@
       <section class="card" aria-labelledby="h-scan">
         <h2 id="h-scan">5. Scan &amp; analyze</h2>
         <p class="section-help">
-          A bounded block-range scan discovers candidate role holders by
-          decoding the methods above (including Gnosis Safe
-          <code>execTransaction</code>/<code>multiSend</code> wrappers), then
-          <code>hasRole</code> confirms current membership.
+          The explorer <code>getLogs</code> API discovers candidate role holders
+          from the events above over the block range, then <code>hasRole</code>
+          confirms current membership — both through the same API key. Leave
+          "To block" blank to scan up to the latest block.
         </p>
         <div class="grid">
           <label class="field">
@@ -113,10 +115,6 @@
           <label class="field">
             <span>To block</span>
             <input id="toBlock" type="text" inputmode="numeric" placeholder="latest" />
-          </label>
-          <label class="field">
-            <span>Concurrency</span>
-            <input id="concurrency" type="number" min="1" max="20" value="6" />
           </label>
           <div class="field range-tools">
             <span>&nbsp;</span>
@@ -147,7 +145,8 @@
     <footer class="site-footer">
       <p>
         Open source · runs entirely client-side · uses only
-        <a href="https://viem.sh" target="_blank" rel="noopener">viem</a>.
+        <a href="https://viem.sh" target="_blank" rel="noopener">viem</a> +
+        the <a href="https://docs.etherscan.io/etherscan-v2" target="_blank" rel="noopener">Etherscan V2 API</a>.
       </p>
     </footer>
 

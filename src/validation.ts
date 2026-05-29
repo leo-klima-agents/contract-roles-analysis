@@ -17,16 +17,10 @@ export function isBytes32(value: string): value is Hex {
   return isHex(v) && v.length === 66;
 }
 
-/** A well-formed http(s) RPC URL. */
-export function isValidRpcUrl(value: string): boolean {
+/** A plausible Etherscan V2 API key (non-empty, alphanumeric). */
+export function isValidApiKey(value: string): boolean {
   const v = value.trim();
-  if (!v) return false;
-  try {
-    const u = new URL(v);
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
+  return v.length >= 8 && /^[A-Za-z0-9]+$/.test(v);
 }
 
 /** Parse a positive bigint block number, or null. */
