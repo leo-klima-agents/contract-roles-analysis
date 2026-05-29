@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contract Roles Analysis</title>
+    <meta
+      name="description"
+      content="Client-side tool to inspect access-control roles of a smart contract on Ethereum, Base, Polygon, or Arbitrum."
+    />
+    <link rel="icon" href="./favicon.svg" />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Contract Roles Analysis</h1>
+      <p class="tagline">
+        Inspect access-control roles of a smart contract on Ethereum, Base,
+        Polygon, or Arbitrum — fully in your browser. Nothing is sent anywhere
+        except the RPC endpoint you provide.
+      </p>
+    </header>
+
+    <main id="app">
+      <!-- Connection -->
+      <section class="card" aria-labelledby="h-connection">
+        <h2 id="h-connection">1. Connection</h2>
+        <div class="grid">
+          <label class="field">
+            <span>Chain</span>
+            <select id="chain"></select>
+          </label>
+          <label class="field span-2">
+            <span>RPC URL</span>
+            <input
+              id="rpcUrl"
+              type="url"
+              placeholder="https://… (must match the selected chain)"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <small class="hint" id="rpcHint"></small>
+          </label>
+          <label class="field span-2">
+            <span>Contract address</span>
+            <input
+              id="contract"
+              type="text"
+              placeholder="0x…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <small class="hint" id="contractHint"></small>
+          </label>
+          <label class="checkbox-inline">
+            <input id="rememberRpc" type="checkbox" />
+            <span>Remember RPC URL on this device (may contain an API key)</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Methods -->
+      <section class="card" aria-labelledby="h-methods">
+        <h2 id="h-methods">2. Role-changing methods</h2>
+        <p class="section-help">
+          The methods to look for in transaction history. Tick whether each
+          should be treated as <strong>granting</strong> and/or
+          <strong>revoking</strong> a role, and choose which argument is the
+          role (bytes32) and which is the account (address).
+        </p>
+        <div id="methodsTable"></div>
+        <button id="addMethod" type="button" class="secondary">+ Add method</button>
+      </section>
+
+      <!-- Roles -->
+      <section class="card" aria-labelledby="h-roles">
+        <h2 id="h-roles">3. Role constants <span class="optional">(optional)</span></h2>
+        <p class="section-help">
+          Map human-readable names to their <code>bytes32</code> values. Compute
+          <code>keccak256(name)</code> automatically or paste a raw value. Used
+          to label results and to verify membership.
+        </p>
+        <div id="rolesTable"></div>
+        <button id="addRole" type="button" class="secondary">+ Add role</button>
+      </section>
+
+      <!-- hasRole -->
+      <section class="card" aria-labelledby="h-hasrole">
+        <h2 id="h-hasrole">4. Membership check <span class="optional">(optional)</span></h2>
+        <p class="section-help">
+          The view method used to confirm whether an account currently holds a
+          role. Optionally list extra candidate addresses (one per line) to
+          check directly — useful for roles granted via internal calls the scan
+          can't see.
+        </p>
+        <div id="hasRoleControl"></div>
+      </section>
+
+      <!-- Scan -->
+      <section class="card" aria-labelledby="h-scan">
+        <h2 id="h-scan">5. Scan &amp; analyze</h2>
+        <p class="section-help">
+          A bounded block-range scan discovers candidate role holders by
+          decoding the methods above (including Gnosis Safe
+          <code>execTransaction</code>/<code>multiSend</code> wrappers), then
+          <code>hasRole</code> confirms current membership.
+        </p>
+        <div class="grid">
+          <label class="field">
+            <span>From block</span>
+            <input id="fromBlock" type="text" inputmode="numeric" placeholder="e.g. 12345000" />
+          </label>
+          <label class="field">
+            <span>To block</span>
+            <input id="toBlock" type="text" inputmode="numeric" placeholder="latest" />
+          </label>
+          <label class="field">
+            <span>Concurrency</span>
+            <input id="concurrency" type="number" min="1" max="20" value="6" />
+          </label>
+          <div class="field range-tools">
+            <span>&nbsp;</span>
+            <div class="btn-row">
+              <button id="useLatest" type="button" class="secondary">Last 2000 blocks → latest</button>
+            </div>
+          </div>
+        </div>
+        <p id="scanEstimate" class="estimate"></p>
+        <div class="btn-row">
+          <button id="runScan" type="button" class="primary">Run analysis</button>
+          <button id="cancelScan" type="button" class="secondary" disabled>Cancel</button>
+        </div>
+        <div id="progress"></div>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <!-- Results -->
+      <section class="card" aria-labelledby="h-results">
+        <h2 id="h-results">6. Results</h2>
+        <div class="btn-row">
+          <button id="exportJson" type="button" class="secondary" disabled>Export JSON</button>
+        </div>
+        <div id="results"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Open source · runs entirely client-side · uses only
+        <a href="https://viem.sh" target="_blank" rel="noopener">viem</a>.
+      </p>
+    </footer>
+
+    <script type="module" src="./assets/main.js"></script>
+  </body>
+</html>
