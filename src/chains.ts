@@ -26,18 +26,23 @@ export function isChainKey(value: string): value is ChainKey {
 /**
  * Build a read-only client for the selected chain and RPC URL.
  *
- * Two batching layers keep RPC volume down:
- *  - transport-level JSON-RPC batching: many getBlock/call requests collapse
- *    into one HTTP POST (helps the block scan's fan-out).
- *  - client-level multicall batching: readContract/multicall calls are
- *    aggregated through multicall3 (helps the hasRole verification phase).
+ * JSON-RPC request batching is intentionally NOT enabled on the transport.
+ * With viem's transport `batch` option, request bodies are sent as a JSON
+ * array (e.g. `[{...}]`) even for a single call, and some providers — notably
+ * certain QuickNode endpoints — reject array-batched bodies, which surfaces as
+ * "HTTP request failed" for every call. Sending one plain request object per
+ * call is universally supported; scan parallelism is handled by the worker-pool
+ * concurrency instead.
+ *
+ * Multicall batching IS kept: it aggregates hasRole reads into a single
+ * `eth_call` against multicall3, which is a normal (non-array) request and is
+ * universally supported.
  */
 export function makeClient(chainKey: ChainKey, rpcUrl: string) {
   const chain = CHAINS[chainKey];
   return createPublicClient({
     chain,
     transport: http(rpcUrl, {
-      batch: { batchSize: 100, wait: 16 },
       retryCount: 2,
       retryDelay: 250,
       timeout: 20_000,

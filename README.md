@@ -77,6 +77,15 @@ Asset URLs are relative, so the project Pages path
 (`https://<owner>.github.io/contract-roles-analysis/`) works with no extra
 configuration.
 
+## RPC providers
+
+Works with any standard JSON-RPC HTTP endpoint for the selected chain —
+Alchemy, QuickNode, Infura, public nodes, etc. The client deliberately sends one
+plain request per call (no transport-level JSON-RPC array batching), because
+some providers (e.g. certain QuickNode endpoints) reject array-batched bodies
+and would otherwise fail with "HTTP request failed". `hasRole` reads are still
+aggregated into a single `eth_call` via multicall3.
+
 ## Known limitations
 
 - **Internal/relayer calls beyond Safe wrappers** may still be invisible to a
