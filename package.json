@@ -1,0 +1,19 @@
+{
+  "name": "contract-roles-analysis",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fully client-side tool to inspect access-control roles of a smart contract on Ethereum, Base, Polygon, or Arbitrum.",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && node build.mjs"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
