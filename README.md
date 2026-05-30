@@ -87,10 +87,13 @@ configuration.
 
 ## Known limitations
 
-- **Requires an Etherscan V2 API key.** One free key covers all four supported
-  chains; both discovery (`getLogs`) and the `hasRole` confirmation
-  (`eth_call` proxy) go through it. Free-tier rate limits apply; the app
-  throttles requests and surfaces any "Max rate limit reached" message.
+- **Requires an Etherscan V2 API key.** Both discovery (`getLogs`) and the
+  `hasRole` confirmation (`eth_call` proxy) go through it. The **free tier
+  covers Ethereum, Polygon, and Arbitrum, but _not_ Base** (chainid 8453) —
+  Base needs a paid Etherscan plan; the app surfaces the API's
+  "Free API access is not supported for this chain" message when this happens.
+  The free tier also caps throughput at ~3 req/s; the app throttles to stay
+  under that and surfaces any "Max rate limit reached" message.
 - **Discovery sees only emitted events.** A contract must emit the role events
   you configure. Standard OpenZeppelin AccessControl always emits
   `RoleGranted` / `RoleRevoked`; for non-standard contracts, add the matching
