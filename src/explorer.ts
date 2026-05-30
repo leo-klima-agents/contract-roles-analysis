@@ -35,10 +35,10 @@ export function chainId(chainKey: ChainKey): number {
 }
 
 // ---- Rate limiting -------------------------------------------------------
-// Free Etherscan keys allow ~5 req/s. Serialize all explorer traffic and
-// insert a small gap after each request so getLogs paging + the hasRole
-// multicall never trip the limiter.
-const MIN_INTERVAL_MS = 220;
+// Free Etherscan keys are limited to ~3 req/s. Serialize all explorer traffic
+// and insert a gap after each request so getLogs paging + the hasRole multicall
+// never trip the limiter.
+const MIN_INTERVAL_MS = 350;
 let gate: Promise<unknown> = Promise.resolve();
 
 function sleep(ms: number): Promise<void> {
@@ -81,25 +81,34 @@ async function getJson(url: string, signal: AbortSignal): Promise<ExplorerEnvelo
   return (await res.json()) as ExplorerEnvelope;
 }
 
-/** POST an Etherscan V2 `module=proxy` request (used for eth_call payloads). */
-async function postJson(
+/**
+ * Issue an Etherscan V2 `module=proxy` request. Etherscan V2 requires `chainid`
+ * (and the other small params) in the query string; only the potentially large
+ * `eth_call` `data` goes in a POST body, which keeps the URL short. Requests
+ * with no body params are sent as a GET.
+ */
+async function proxyRequest(
   chainKey: ChainKey,
   apiKey: string,
-  params: Record<string, string>,
+  action: string,
+  query: Record<string, string>,
+  body: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<ExplorerEnvelope> {
-  const body = new URLSearchParams({
-    chainid: String(chainId(chainKey)),
-    apikey: apiKey,
-    ...params,
-  });
+  const url = explorerUrl(chainKey, apiKey, { module: 'proxy', action, ...query });
+  const hasBody = Object.keys(body).length > 0;
   const res = await schedule(() =>
-    fetch(EXPLORER_V2_BASE, {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body,
-      signal,
-    }),
+    fetch(
+      url,
+      hasBody
+        ? {
+            method: 'POST',
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(body),
+            signal,
+          }
+        : { signal },
+    ),
   );
   if (!res.ok) throw new Error(`Explorer HTTP ${res.status} ${res.statusText}`);
   return (await res.json()) as ExplorerEnvelope;
@@ -257,10 +266,7 @@ export function makeExplorerClient(chainKey: ChainKey, apiKey: string) {
       case 'eth_chainId':
         return `0x${chainId(chainKey).toString(16)}`;
       case 'eth_blockNumber': {
-        const env = await postJson(chainKey, apiKey, {
-          module: 'proxy',
-          action: 'eth_blockNumber',
-        });
+        const env = await proxyRequest(chainKey, apiKey, 'eth_blockNumber', {}, {});
         const err = envelopeError(env);
         if (err) throw new Error(err);
         return env.result as Hex;
@@ -270,13 +276,13 @@ export function makeExplorerClient(chainKey: ChainKey, apiKey: string) {
           { to?: string; data?: string },
           string | undefined,
         ];
-        const env = await postJson(chainKey, apiKey, {
-          module: 'proxy',
-          action: 'eth_call',
-          to: callObj?.to ?? '',
-          data: callObj?.data ?? '0x',
-          tag: typeof tag === 'string' ? tag : 'latest',
-        });
+        const env = await proxyRequest(
+          chainKey,
+          apiKey,
+          'eth_call',
+          { to: callObj?.to ?? '', tag: typeof tag === 'string' ? tag : 'latest' },
+          { data: callObj?.data ?? '0x' },
+        );
         const err = envelopeError(env);
         if (err) throw new Error(err);
         return env.result as Hex;
