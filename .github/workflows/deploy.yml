@@ -1,20 +1,20 @@
-name: Deploy to GitHub Pages
+name: Build and Deploy
 
 on:
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  # One in-flight run per branch. Feature branches cancel superseded runs to
+  # save CI minutes; main is never cancelled so a deployment can't be aborted.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Builds on every commit, on every branch (CI gate: typecheck + bundle).
   build:
     runs-on: ubuntu-latest
     steps:
@@ -25,14 +25,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Only prepare the Pages artifact on main.
       - uses: actions/configure-pages@v5
+        if: github.ref == 'refs/heads/main'
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
         with:
           path: ./dist
 
+  # Publishes to GitHub Pages only from main.
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

@@ -1,7 +1,7 @@
-import type { AbiFunction } from 'viem';
-import { parseFunctionSignature, buildMethodDef } from '../abi';
-import type { MethodDef } from '../types';
-import { OZ_METHOD_PRESETS } from '../config';
+import type { AbiEvent } from 'viem';
+import { parseEventSignature, buildEventDef } from '../abi';
+import type { EventDef } from '../types';
+import { OZ_EVENT_PRESETS } from '../config';
 import { el, clear } from './dom';
 
 interface RowState {
@@ -17,21 +17,21 @@ function argKey(input: { name?: string }, index: number): string | number {
   return input.name && input.name.length > 0 ? input.name : index;
 }
 
-export interface MethodsController {
-  getMethods(): MethodDef[];
+export interface EventsController {
+  getEvents(): EventDef[];
   getState(): RowState[];
 }
 
-export function createMethodsTable(
+export function createEventsTable(
   container: HTMLElement,
   addButton: HTMLButtonElement,
   initial: RowState[] | undefined,
   onChange: () => void,
-): MethodsController {
+): EventsController {
   const rows: RowState[] =
     initial && initial.length
       ? initial.map((r) => ({ ...r }))
-      : OZ_METHOD_PRESETS.map((p) => ({
+      : OZ_EVENT_PRESETS.map((p) => ({
           signature: p.signature,
           isGrant: p.isGrant,
           isRevoke: p.isRevoke,
@@ -41,7 +41,7 @@ export function createMethodsTable(
 
   function argSelect(
     label: string,
-    abi: AbiFunction | undefined,
+    abi: AbiEvent | undefined,
     selected: string | number,
     onPick: (key: string | number) => void,
   ): HTMLElement {
@@ -74,7 +74,7 @@ export function createMethodsTable(
   function render(): void {
     clear(container);
     rows.forEach((row, index) => {
-      const parsed = parseFunctionSignature(row.signature);
+      const parsed = parseEventSignature(row.signature);
       const abi = 'abi' in parsed ? parsed.abi : undefined;
       const errMsg = 'error' in parsed ? parsed.error : '';
 
@@ -82,7 +82,7 @@ export function createMethodsTable(
         type: 'text',
         value: row.signature,
         spellcheck: false,
-        placeholder: 'methodName(bytes32 role, address account)',
+        placeholder: 'RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)',
       });
       sigInput.oninput = () => {
         row.signature = sigInput.value;
@@ -107,7 +107,7 @@ export function createMethodsTable(
         type: 'button',
         className: 'icon',
         textContent: '✕',
-        title: 'Remove method',
+        title: 'Remove event',
       });
       removeBtn.onclick = () => {
         rows.splice(index, 1);
@@ -148,9 +148,9 @@ export function createMethodsTable(
   render();
 
   return {
-    getMethods: () =>
+    getEvents: () =>
       rows.map((r) =>
-        buildMethodDef(r.signature, {
+        buildEventDef(r.signature, {
           isGrant: r.isGrant,
           isRevoke: r.isRevoke,
           roleArg: r.roleArg,

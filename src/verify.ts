@@ -1,10 +1,10 @@
 import type { Address, Hex } from 'viem';
 import { parseFunctionSignature } from './abi';
-import type { RoleClient } from './chains';
+import type { ExplorerClient } from './explorer';
 import type { Candidate, HasRoleConfig, Holder, RoleDef } from './types';
 
 export interface VerifyInput {
-  client: RoleClient;
+  client: ExplorerClient;
   contract: Address;
   hasRole: HasRoleConfig;
   /** Pairs discovered by the scan (provenance carried through). */

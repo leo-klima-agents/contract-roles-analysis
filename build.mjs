@@ -1,11 +1,11 @@
 // Production/dev bundle step. esbuild bundles src/main.ts into dist/assets and
-// copies the static files. The dev RPC URL is injected ONLY when run with
-// --dev (and DEV_RPC_URL is set); production builds get an empty string.
+// copies the static files. The dev API key is injected ONLY when run with
+// --dev (and DEV_API_KEY is set); production builds get an empty string.
 import * as esbuild from 'esbuild';
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 
 const dev = process.argv.includes('--dev');
-const devRpc = dev ? (process.env.DEV_RPC_URL ?? '') : '';
+const devApiKey = dev ? (process.env.DEV_API_KEY ?? '') : '';
 
 export const buildOptions = {
   entryPoints: ['src/main.ts'],
@@ -17,7 +17,7 @@ export const buildOptions = {
   outfile: 'dist/assets/main.js',
   logLevel: 'info',
   define: {
-    __DEV_RPC_URL__: JSON.stringify(devRpc),
+    __DEV_API_KEY__: JSON.stringify(devApiKey),
   },
 };
 

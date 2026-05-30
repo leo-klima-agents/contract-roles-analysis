@@ -2,23 +2,21 @@ import {
   CHAIN_ORDER,
   CHAIN_LABELS,
   isChainKey,
-  makeClient,
   type ChainKey,
-  type RoleClient,
 } from './chains';
+import { makeExplorerClient, scanViaExplorer, type ExplorerClient } from './explorer';
 import {
   normalizeAddress,
-  isValidRpcUrl,
+  isValidApiKey,
   parseBlockNumber,
 } from './validation';
 import { DEFAULT_BLOCK_WINDOW, DEFAULT_HASROLE_SIGNATURE } from './config';
 import { buildRoleNameMap } from './roles';
-import { scanRange } from './scan';
 import { verifyHolders } from './verify';
 import { loadState, saveState, type PersistedState } from './storage';
 import type { Holder } from './types';
 import { $, el } from './ui/dom';
-import { createMethodsTable } from './ui/methodsTable';
+import { createEventsTable } from './ui/eventsTable';
 import { createRolesTable } from './ui/rolesTable';
 import { createHasRoleControl } from './ui/hasRoleControl';
 import { createProgress } from './ui/progress';
@@ -26,14 +24,13 @@ import { renderResults, holdersToJson } from './ui/resultsTable';
 
 // ---- Element references ----
 const chainSelect = $<HTMLSelectElement>('chain');
-const rpcInput = $<HTMLInputElement>('rpcUrl');
-const rpcHint = $('rpcHint');
+const apiKeyInput = $<HTMLInputElement>('explorerApiKey');
+const apiKeyHint = $('apiKeyHint');
 const contractInput = $<HTMLInputElement>('contract');
 const contractHint = $('contractHint');
-const rememberRpc = $<HTMLInputElement>('rememberRpc');
+const rememberApiKey = $<HTMLInputElement>('rememberApiKey');
 const fromBlockInput = $<HTMLInputElement>('fromBlock');
 const toBlockInput = $<HTMLInputElement>('toBlock');
-const concurrencyInput = $<HTMLInputElement>('concurrency');
 const useLatestBtn = $<HTMLButtonElement>('useLatest');
 const scanEstimate = $('scanEstimate');
 const runScanBtn = $<HTMLButtonElement>('runScan');
@@ -54,18 +51,17 @@ for (const key of CHAIN_ORDER) {
 chainSelect.value = saved?.chainKey && isChainKey(saved.chainKey) ? saved.chainKey : 'base';
 
 contractInput.value = saved?.contract ?? '';
-rememberRpc.checked = saved?.rememberRpc ?? false;
-// Prefer a remembered RPC URL; otherwise prefill from the dev-only injected value.
-rpcInput.value = saved?.rpcUrl ?? (__DEV_RPC_URL__ || '');
+rememberApiKey.checked = saved?.rememberApiKey ?? false;
+// Prefer a remembered API key; otherwise prefill from the dev-only injected value.
+apiKeyInput.value = saved?.explorerApiKey ?? (__DEV_API_KEY__ || '');
 fromBlockInput.value = saved?.fromBlock ?? '';
 toBlockInput.value = saved?.toBlock ?? '';
-concurrencyInput.value = saved?.concurrency ?? '6';
 
 // ---- Controllers ----
-const methods = createMethodsTable(
-  $('methodsTable'),
-  $<HTMLButtonElement>('addMethod'),
-  saved?.methods,
+const events = createEventsTable(
+  $('eventsTable'),
+  $<HTMLButtonElement>('addEvent'),
+  saved?.events,
   persist,
 );
 const roles = createRolesTable(
@@ -93,9 +89,9 @@ function collectState(): PersistedState {
   return {
     chainKey: chainSelect.value,
     contract: contractInput.value.trim(),
-    rpcUrl: rpcInput.value.trim(),
-    rememberRpc: rememberRpc.checked,
-    methods: methods.getState(),
+    explorerApiKey: apiKeyInput.value.trim(),
+    rememberApiKey: rememberApiKey.checked,
+    events: events.getState(),
     roles: roles.getState(),
     hasRoleSignature: hr.signature,
     hasRoleRoleArg: hr.roleArg,
@@ -103,7 +99,6 @@ function collectState(): PersistedState {
     candidateAddressesText: hr.candidateAddressesText,
     fromBlock: fromBlockInput.value.trim(),
     toBlock: toBlockInput.value.trim(),
-    concurrency: concurrencyInput.value.trim(),
   };
 }
 
@@ -112,17 +107,17 @@ function persist(): void {
 }
 
 // ---- Validation hints ----
-function validateRpc(): boolean {
-  const v = rpcInput.value.trim();
+function validateApiKey(): boolean {
+  const v = apiKeyInput.value.trim();
   if (!v) {
-    rpcHint.textContent = '';
-    rpcInput.classList.remove('invalid');
+    apiKeyHint.textContent = '';
+    apiKeyInput.classList.remove('invalid');
     return false;
   }
-  const ok = isValidRpcUrl(v);
-  rpcInput.classList.toggle('invalid', !ok);
-  rpcHint.className = ok ? 'hint ok' : 'hint err';
-  rpcHint.textContent = ok ? '' : 'Must be a valid http(s) URL.';
+  const ok = isValidApiKey(v);
+  apiKeyInput.classList.toggle('invalid', !ok);
+  apiKeyHint.className = ok ? 'hint ok' : 'hint err';
+  apiKeyHint.textContent = ok ? '' : 'Expected an alphanumeric Etherscan V2 API key.';
   return ok;
 }
 
@@ -138,8 +133,18 @@ function validateContract(): boolean {
 
 function updateEstimate(): void {
   const from = parseBlockNumber(fromBlockInput.value);
-  const to = parseBlockNumber(toBlockInput.value);
-  if (from === null || to === null) {
+  const toRaw = toBlockInput.value.trim();
+  if (from === null) {
+    scanEstimate.textContent = '';
+    return;
+  }
+  if (toRaw === '') {
+    scanEstimate.textContent =
+      'Explorer API: a few paginated getLogs request(s) from this block to latest — fast, and captures role changes via any call path.';
+    return;
+  }
+  const to = parseBlockNumber(toRaw);
+  if (to === null) {
     scanEstimate.textContent = '';
     return;
   }
@@ -148,11 +153,11 @@ function updateEstimate(): void {
     return;
   }
   const count = to - from + 1n;
-  scanEstimate.textContent = `≈ ${count.toLocaleString()} block request(s) (one per block). Large ranges are slow and may hit RPC rate limits.`;
+  scanEstimate.textContent = `Explorer API: a few paginated getLogs request(s) over ${count.toLocaleString()} block(s) — fast, and captures role changes via any call path.`;
 }
 
-rpcInput.addEventListener('input', () => {
-  validateRpc();
+apiKeyInput.addEventListener('input', () => {
+  validateApiKey();
   persist();
 });
 contractInput.addEventListener('input', () => {
@@ -160,22 +165,22 @@ contractInput.addEventListener('input', () => {
   persist();
 });
 chainSelect.addEventListener('change', persist);
-rememberRpc.addEventListener('change', persist);
-for (const inp of [fromBlockInput, toBlockInput, concurrencyInput]) {
+rememberApiKey.addEventListener('change', persist);
+for (const inp of [fromBlockInput, toBlockInput]) {
   inp.addEventListener('input', () => {
     updateEstimate();
     persist();
   });
 }
 
-validateRpc();
+validateApiKey();
 validateContract();
 updateEstimate();
 
 // ---- Build a client from current inputs (or report why we can't) ----
-function buildClient(): { client: RoleClient; chainKey: ChainKey } | null {
-  if (!validateRpc()) {
-    setStatus('Enter a valid RPC URL.', 'err');
+function buildClient(): { client: ExplorerClient; chainKey: ChainKey } | null {
+  if (!validateApiKey()) {
+    setStatus('Enter a valid Etherscan V2 API key.', 'err');
     return null;
   }
   if (!isChainKey(chainSelect.value)) {
@@ -183,7 +188,7 @@ function buildClient(): { client: RoleClient; chainKey: ChainKey } | null {
     return null;
   }
   const chainKey = chainSelect.value;
-  return { client: makeClient(chainKey, rpcInput.value.trim()), chainKey };
+  return { client: makeExplorerClient(chainKey, apiKeyInput.value.trim()), chainKey };
 }
 
 function setStatus(text: string, kind: '' | 'ok' | 'err' = ''): void {
@@ -226,16 +231,20 @@ runScanBtn.addEventListener('click', async () => {
   const contract = normalizeAddress(contractInput.value)!;
 
   const from = parseBlockNumber(fromBlockInput.value);
-  const to = parseBlockNumber(toBlockInput.value);
-  if (from === null || to === null || to < from) {
-    setStatus('Enter a valid block range (from ≤ to).', 'err');
+  if (from === null) {
+    setStatus('Enter a valid "from block".', 'err');
     return;
   }
-  const concurrency = Math.max(1, Math.min(20, Number(concurrencyInput.value) || 6));
+  const toRaw = toBlockInput.value.trim();
+  const toParsed = toRaw === '' ? null : parseBlockNumber(toRaw);
+  if (toRaw !== '' && toParsed === null) {
+    setStatus('Enter a valid "to block" (or leave it blank for latest).', 'err');
+    return;
+  }
 
-  const methodDefs = methods.getMethods().filter((m) => m.selector && (m.isGrant || m.isRevoke));
-  if (methodDefs.length === 0) {
-    setStatus('Define at least one valid grant/revoke method.', 'err');
+  const eventDefs = events.getEvents().filter((e) => e.topic0 && (e.isGrant || e.isRevoke));
+  if (eventDefs.length === 0) {
+    setStatus('Define at least one valid grant/revoke event.', 'err');
     return;
   }
 
@@ -243,21 +252,31 @@ runScanBtn.addEventListener('click', async () => {
   runScanBtn.disabled = true;
   cancelScanBtn.disabled = false;
   exportBtn.disabled = true;
-  progress.show();
+  progress.show('requests');
 
   try {
-    setStatus('Scanning blocks…');
-    const scan = await scanRange(
-      built.client,
+    // Resolve "latest" for a blank "to block".
+    let to = toParsed;
+    if (to === null) {
+      setStatus('Resolving latest block…');
+      to = await built.client.getBlockNumber();
+    }
+    if (to < from) {
+      setStatus('Block range is invalid (from ≤ to).', 'err');
+      return;
+    }
+
+    setStatus('Discovering role events via the explorer API…');
+    const scan = await scanViaExplorer(
       contract,
-      methodDefs,
-      { fromBlock: from, toBlock: to, concurrency },
+      eventDefs,
+      { apiKey: apiKeyInput.value.trim(), chainKey: built.chainKey, fromBlock: from, toBlock: to },
       (done, total) => progress.set(done, total),
       abort.signal,
     );
 
     setStatus(
-      `Found ${scan.candidates.size} candidate pair(s) from ${scan.matchedActions} matched call(s). Verifying with hasRole…`,
+      `Found ${scan.candidates.size} candidate pair(s) from ${scan.matchedActions} matched event(s). Verifying with hasRole…`,
     );
 
     const roleDefs = roles.getRoles();
